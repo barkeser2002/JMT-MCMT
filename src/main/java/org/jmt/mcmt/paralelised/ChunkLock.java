@@ -25,7 +25,8 @@ public class ChunkLock {
 	}
 	
 	public long[] lock(BlockPos bp, int radius) {
-		long cp = new ChunkPos(bp).asLong();
+		ChunkPos pos = new ChunkPos(bp);
+		long cp = ChunkPos.asLong(pos.x, pos.z);
 		return lock(cp, radius);
 	}
 	

@@ -1,5 +1,6 @@
 package org.jmt.mcmt.coremod;
 
+import net.minecraft.launchwrapper.Launch;
 import net.minecraft.launchwrapper.IClassTransformer;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
@@ -42,7 +43,7 @@ public class MCMTClassTransformer implements IClassTransformer {
             }
         }
 
-        ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
+        ClassWriter classWriter = createClassWriter();
         classNode.accept(classWriter);
         return classWriter.toByteArray();
     }
@@ -67,7 +68,7 @@ public class MCMTClassTransformer implements IClassTransformer {
             }
         }
 
-        ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
+        ClassWriter classWriter = createClassWriter();
         classNode.accept(classWriter);
         return classWriter.toByteArray();
     }
@@ -93,8 +94,45 @@ public class MCMTClassTransformer implements IClassTransformer {
             }
         }
 
-        ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
+        ClassWriter classWriter = createClassWriter();
         classNode.accept(classWriter);
         return classWriter.toByteArray();
+    }
+
+    private ClassWriter createClassWriter() {
+        return new SafeClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
+    }
+
+    private static final class SafeClassWriter extends ClassWriter {
+        private SafeClassWriter(int flags) {
+            super(flags);
+        }
+
+        @Override
+        protected String getCommonSuperClass(String type1, String type2) {
+            try {
+                ClassLoader classLoader = Launch.classLoader != null ? Launch.classLoader : MCMTClassTransformer.class.getClassLoader();
+                Class<?> class1 = Class.forName(type1.replace('/', '.'), false, classLoader);
+                Class<?> class2 = Class.forName(type2.replace('/', '.'), false, classLoader);
+
+                if (class1.isAssignableFrom(class2)) {
+                    return type1;
+                }
+                if (class2.isAssignableFrom(class1)) {
+                    return type2;
+                }
+                if (class1.isInterface() || class2.isInterface()) {
+                    return "java/lang/Object";
+                }
+
+                while (class1 != null && !class1.isAssignableFrom(class2)) {
+                    class1 = class1.getSuperclass();
+                }
+
+                return class1 == null ? "java/lang/Object" : class1.getName().replace('.', '/');
+            } catch (Throwable ignored) {
+                return "java/lang/Object";
+            }
+        }
     }
 }
